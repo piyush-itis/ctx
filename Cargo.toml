@@ -1,0 +1,18 @@
+[package]
+name = "ctx"
+version = "0.1.0"
+edition = "2024"
+description = "A modern, multi-shell command-line productivity logger and terminal history tool."
+license = "MIT"
+repository = "https://github.com/piyush-itis/ctx"
+homepage = "https://github.com/piyush-itis/ctx"
+keywords = ["productivity", "cli", "terminal", "logger", "history"]
+readme = "README.md"
+
+[dependencies]
+rusqlite = "0.30"
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "5"
+atty = "0.2.14"
