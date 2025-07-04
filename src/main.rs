@@ -6,7 +6,7 @@ use chrono::{Local, DateTime};
 use db::{init_db, CommandLog};
 
 #[derive(Parser)]
-#[command(name = "ctx")]
+#[command(name = "prynt")]
 #[command(about = "Terminal command logger and productivity tracker", long_about = None)]
 struct Cli {
     #[command(subcommand)]
@@ -73,7 +73,7 @@ enum Commands {
 }
 
 fn main() {
-    let db_path = dirs::home_dir().unwrap().join(".context/ctx.sqlite");
+    let db_path = dirs::home_dir().unwrap().join(".context/prynt.sqlite");
     let db_path_str = db_path.to_str().unwrap();
     let conn = init_db(db_path_str).expect("Failed to initialize database");
 
@@ -81,15 +81,7 @@ fn main() {
 
     match cli.command {
         Commands::LogCmd { command, cwd, exit_code, duration_secs } => {
-            let log = CommandLog {
-                id: uuid::Uuid::new_v4().to_string(),
-                timestamp: Local::now(),
-                cwd,
-                command,
-                exit_code,
-                duration_secs,
-            };
-            db::insert_command_log(&conn, &log).expect("Failed to insert log");
+            logger::log_command(&conn, command, cwd, exit_code, duration_secs);
         }
         Commands::Log { reverse, less } => {
             let order = if reverse { "DESC" } else { "ASC" };
@@ -143,7 +135,7 @@ fn main() {
             for log in logs {
                 let (timestamp, cwd, command, duration): (String, String, String, f64) = log.unwrap();
                 let trimmed = command.trim_start();
-                if trimmed == "ctx" || trimmed.starts_with("ctx ") { continue; }
+                if trimmed == "prynt" || trimmed.starts_with("prynt ") { continue; }
                 let ts = DateTime::parse_from_rfc3339(&timestamp).unwrap().with_timezone(&Local);
                 if first_timestamp.is_none() { first_timestamp = Some(ts); }
                 last_timestamp = Some(ts);
@@ -231,7 +223,7 @@ fn main() {
             for log in logs {
                 let (timestamp, cwd, command, duration): (String, String, String, f64) = log.unwrap();
                 let trimmed = command.trim_start();
-                if trimmed == "ctx" || trimmed.starts_with("ctx ") { continue; }
+                if trimmed == "prynt" || trimmed.starts_with("prynt ") { continue; }
                 let ts = DateTime::parse_from_rfc3339(&timestamp).unwrap().with_timezone(&Local);
                 if first_timestamp.is_none() { first_timestamp = Some(ts); }
                 last_timestamp = Some(ts);
@@ -327,7 +319,7 @@ fn main() {
             }
         }
         Commands::Top { n } => {
-            let mut stmt = conn.prepare("SELECT command, COUNT(*) as cnt FROM command_logs WHERE command NOT LIKE 'ctx%' GROUP BY command ORDER BY cnt DESC LIMIT ?1").unwrap();
+            let mut stmt = conn.prepare("SELECT command, COUNT(*) as cnt FROM command_logs WHERE command NOT LIKE 'prynt%' GROUP BY command ORDER BY cnt DESC LIMIT ?1").unwrap();
             let rows = stmt.query_map([n as i64], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             }).unwrap();
@@ -338,7 +330,7 @@ fn main() {
             }
         }
         Commands::Projects => {
-            let mut stmt = conn.prepare("SELECT cwd, COUNT(*), SUM(duration_secs) FROM command_logs WHERE command NOT LIKE 'ctx%' GROUP BY cwd ORDER BY COUNT(*) DESC").unwrap();
+            let mut stmt = conn.prepare("SELECT cwd, COUNT(*), SUM(duration_secs) FROM command_logs WHERE command NOT LIKE 'prynt%' GROUP BY cwd ORDER BY COUNT(*) DESC").unwrap();
             let rows = stmt.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, f64>(2)?))
             }).unwrap();
@@ -350,7 +342,7 @@ fn main() {
         }
         Commands::Search { pattern } => {
             let like_pattern = format!("%{}%", pattern);
-            let mut stmt = conn.prepare("SELECT timestamp, cwd, command, exit_code, duration_secs FROM command_logs WHERE command LIKE ?1 AND command NOT LIKE 'ctx%' ORDER BY timestamp ASC").unwrap();
+            let mut stmt = conn.prepare("SELECT timestamp, cwd, command, exit_code, duration_secs FROM command_logs WHERE command LIKE ?1 AND command NOT LIKE 'prynt%' ORDER BY timestamp ASC").unwrap();
             let rows = stmt.query_map([like_pattern], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i32>(3)?, row.get::<_, f64>(4)?))
             }).unwrap();
@@ -361,7 +353,7 @@ fn main() {
             }
         }
         Commands::Stats => {
-            let mut stmt = conn.prepare("SELECT COUNT(*), SUM(duration_secs), MIN(duration_secs), MAX(duration_secs), AVG(duration_secs) FROM command_logs WHERE command NOT LIKE 'ctx%'").unwrap();
+            let mut stmt = conn.prepare("SELECT COUNT(*), SUM(duration_secs), MIN(duration_secs), MAX(duration_secs), AVG(duration_secs) FROM command_logs WHERE command NOT LIKE 'prynt%'").unwrap();
             let mut rows = stmt.query([]).unwrap();
             if let Some(row) = rows.next().unwrap() {
                 let total: i64 = row.get(0).unwrap_or(0);
@@ -428,16 +420,16 @@ fn main() {
             let mut snippet = String::new();
             let mut config_path = String::new();
             if shell.contains("zsh") {
-                snippet = format!("function ctx_preexec() {{\n    export CTX_CMD_START_TIME=$({})\n    export CTX_CMD_TO_LOG=\"$1\"\n}}\nfunction ctx_precmd() {{\n    if [[ -n \"$CTX_CMD_START_TIME\" && -n \"$CTX_CMD_TO_LOG\" ]]; then\n        local end_time=$({})\n        local duration_ns=$((end_time - CTX_CMD_START_TIME))\n        local duration_s=$(awk \"BEGIN {{print $duration_ns/1000000000}}\")\n        local exit_code=$?\n        if [[ ! \"$CTX_CMD_TO_LOG\" =~ ^ctx($|[[:space:]]) ]]; then\n            ctx log-cmd \"$CTX_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        fi\n        unset CTX_CMD_START_TIME\n        unset CTX_CMD_TO_LOG\n    fi\n}}\nautoload -Uz add-zsh-hook\nadd-zsh-hook preexec ctx_preexec\nadd-zsh-hook precmd ctx_precmd\n", time_cmd, time_cmd);
+                snippet = format!("function prynt_preexec() {{\n    export PRYNT_CMD_START_TIME=$({})\n    export PRYNT_CMD_TO_LOG=\"$1\"\n}}\nfunction prynt_precmd() {{\n    if [[ -n \"$PRYNT_CMD_START_TIME\" && -n \"$PRYNT_CMD_TO_LOG\" ]]; then\n        local end_time=$({})\n        local duration_ns=$((end_time - PRYNT_CMD_START_TIME))\n        local duration_s=$(awk \"BEGIN {{print $duration_ns/1000000000}}\")\n        local exit_code=$?\n        if [[ ! \"$PRYNT_CMD_TO_LOG\" =~ ^prynt($|[[:space:]]) ]]; then\n            prynt log-cmd \"$PRYNT_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        fi\n        unset PRYNT_CMD_START_TIME\n        unset PRYNT_CMD_TO_LOG\n    fi\n}}\nautoload -Uz add-zsh-hook\nadd-zsh-hook preexec prynt_preexec\nadd-zsh-hook precmd prynt_precmd\n", time_cmd, time_cmd);
                 config_path = format!("{}/.zshrc", env::var("HOME").unwrap());
             } else if shell.contains("fish") {
-                snippet = format!("function ctx_preexec --on-event fish_preexec\n    set -g CTX_CMD_START_TIME ({} )\n    set -g CTX_CMD_TO_LOG $argv[1]\nend\n\nfunction ctx_precmd --on-event fish_prompt\n    if test -n \"$CTX_CMD_START_TIME\" -a -n \"$CTX_CMD_TO_LOG\"\n        set end_time ({} )\n        set duration_ns (math $end_time - $CTX_CMD_START_TIME)\n        set duration_s (math --scale 2 $duration_ns / 1000000000)\n        set exit_code $status\n        if not string match -r '^ctx($|\\s)' -- $CTX_CMD_TO_LOG\n            ctx log-cmd \"$CTX_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        end\n        set -e CTX_CMD_START_TIME\n        set -e CTX_CMD_TO_LOG\n    end\nend\n", time_cmd, time_cmd);
+                snippet = format!("function prynt_preexec --on-event fish_preexec\n    set -g PRYNT_CMD_START_TIME ({} )\n    set -g PRYNT_CMD_TO_LOG $argv[1]\nend\n\nfunction prynt_precmd --on-event fish_prompt\n    if test -n \"$PRYNT_CMD_START_TIME\" -a -n \"$PRYNT_CMD_TO_LOG\"\n        set end_time ({} )\n        set duration_ns (math $end_time - $PRYNT_CMD_START_TIME)\n        set duration_s (math --scale 2 $duration_ns / 1000000000)\n        set exit_code $status\n        if not string match -r '^prynt($|\\s)' -- $PRYNT_CMD_TO_LOG\n            prynt log-cmd \"$PRYNT_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        end\n        set -e PRYNT_CMD_START_TIME\n        set -e PRYNT_CMD_TO_LOG\n    end\nend\n", time_cmd, time_cmd);
                 config_path = format!("{}/.config/fish/config.fish", env::var("HOME").unwrap());
             } else {
-                snippet = format!("[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh\n\nfunction ctx_preexec() {{\n    export CTX_CMD_START_TIME=$({})\n    export CTX_CMD_TO_LOG=\"$1\"\n}}\nfunction ctx_precmd() {{\n    if [ -n \"$CTX_CMD_START_TIME\" ] && [ -n \"$CTX_CMD_TO_LOG\" ]; then\n        local end_time=$({})\n        local duration_ns=$((end_time - CTX_CMD_START_TIME))\n        local duration_s=$(awk \"BEGIN {{print $duration_ns/1000000000}}\")\n        local exit_code=$?\n        if [[ ! \"$CTX_CMD_TO_LOG\" =~ ^ctx($|[[:space:]]) ]]; then\n            ctx log-cmd \"$CTX_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        fi\n        unset CTX_CMD_START_TIME\n        unset CTX_CMD_TO_LOG\n    fi\n}}\npreexec_functions+=(ctx_preexec)\nprecmd_functions+=(ctx_precmd)\n", time_cmd, time_cmd);
+                snippet = format!("[[ -f ~/.bash-preexec.sh ]] && source ~/.bash-preexec.sh\n\nfunction prynt_preexec() {{\n    export PRYNT_CMD_START_TIME=$({})\n    export PRYNT_CMD_TO_LOG=\"$1\"\n}}\nfunction prynt_precmd() {{\n    if [ -n \"$PRYNT_CMD_START_TIME\" ] && [ -n \"$PRYNT_CMD_TO_LOG\" ]; then\n        local end_time=$({})\n        local duration_ns=$((end_time - PRYNT_CMD_START_TIME))\n        local duration_s=$(awk \"BEGIN {{print $duration_ns/1000000000}}\")\n        local exit_code=$?\n        if [[ ! \"$PRYNT_CMD_TO_LOG\" =~ ^prynt($|[[:space:]]) ]]; then\n            prynt log-cmd \"$PRYNT_CMD_TO_LOG\" \"$PWD\" \"$exit_code\" \"$duration_s\"\n        fi\n        unset PRYNT_CMD_START_TIME\n        unset PRYNT_CMD_TO_LOG\n    fi\n}}\npreexec_functions+=(prynt_preexec)\nprecmd_functions+=(prynt_precmd)\n", time_cmd, time_cmd);
                 config_path = format!("{}/.bashrc", env::var("HOME").unwrap());
             }
-            println!("# The following snippet will enable ctx logging for your shell:\n\n{}", snippet);
+            println!("# The following snippet will enable prynt logging for your shell:\n\n{}", snippet);
             #[cfg(target_os = "macos")]
             println!("\n**Note for macOS users:** For nanosecond precision, install GNU coreutils and use 'gdate' instead of 'date'.\nE.g., replace 'date +%s' with 'gdate +%s%N' in the snippet above after installing coreutils with 'brew install coreutils'.");
             print!("\nWould you like to append this to {}? [y/N]: ", config_path);
@@ -447,9 +439,9 @@ fn main() {
             if answer.trim().eq_ignore_ascii_case("y") {
                 use std::fs::OpenOptions;
                 let mut file = OpenOptions::new().create(true).append(true).open(&config_path).unwrap();
-                writeln!(file, "\n# ctx shell integration\n{}", snippet).unwrap();
+                writeln!(file, "\n# prynt shell integration\n{}", snippet).unwrap();
                 println!("Appended to {}!", config_path);
-                println!("\nTo activate ctx logging, run: source {}", config_path);
+                println!("\nTo activate prynt logging, run: source {}", config_path);
             } else {
                 println!("Not appended. You can manually add the snippet above to your shell config file.");
             }

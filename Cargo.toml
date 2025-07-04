@@ -1,11 +1,11 @@
 [package]
-name = "ctx"
+name = "prynt"
 version = "1.0.0"
 edition = "2024"
 description = "A modern, multi-shell command-line productivity logger and terminal history tool."
 license = "MIT"
-repository = "https://github.com/piyush-itis/ctx"
-homepage = "https://github.com/piyush-itis/ctx"
+repository = "https://github.com/piyush-itis/prynt"
+homepage = "https://github.com/piyush-itis/prynt"
 keywords = ["productivity", "cli", "terminal", "logger", "history"]
 readme = "README.md"
 

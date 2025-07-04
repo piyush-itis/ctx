@@ -1,4 +1,4 @@
-# Contributing to ctx
+# Contributing to prynt
 
 Thank you for your interest in contributing!
 

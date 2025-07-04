@@ -196,18 +196,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
-name = "ctx"
-version = "1.0.0"
-dependencies = [
- "atty",
- "chrono",
- "clap",
- "dirs",
- "rusqlite",
- "uuid",
-]
-
-[[package]]
 name = "dirs"
 version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -409,6 +397,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "prynt"
+version = "1.0.0"
+dependencies = [
+ "atty",
+ "chrono",
+ "clap",
+ "dirs",
+ "rusqlite",
+ "uuid",
 ]
 
 [[package]]
