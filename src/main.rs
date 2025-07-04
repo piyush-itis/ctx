@@ -74,6 +74,13 @@ enum Commands {
 
 fn main() {
     let db_path = dirs::home_dir().unwrap().join(".context/prynt.sqlite");
+    let db_dir = db_path.parent().unwrap();
+    
+    // Create the .context directory if it doesn't exist
+    if !db_dir.exists() {
+        std::fs::create_dir_all(db_dir).expect("Failed to create .context directory");
+    }
+    
     let db_path_str = db_path.to_str().unwrap();
     let conn = init_db(db_path_str).expect("Failed to initialize database");
 
