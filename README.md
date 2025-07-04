@@ -5,7 +5,6 @@ A modern, multi-shell command-line productivity logger and terminal history tool
 ## Features
 - Logs every command you run in your terminal (except `prynt` commands)
 - Stores logs in a fast, efficient SQLite database in `~/.context/prynt.sqlite`
-- Anti-abuse: ignores rapid commands (<0.5s), blacklisted commands (`ls`, `clear`, `pwd`, `history`, `exit`), consecutive duplicates, and only logs from interactive shells (TTY)
 - Powerful CLI:
   - `prynt log` — View complete history (with `--less`, `--reverse`)
   - `prynt today`, `prynt weekly` — Filter by time
@@ -73,13 +72,6 @@ prynt clear
 - `prynt clear` — Clear all logs (asks for confirmation).
 - `prynt init` — Onboard and set up shell integration.
 
-## Anti-abuse & Credibility
-- Ignores rapid-fire commands (<0.5s apart)
-- Ignores blacklisted commands: `ls`, `clear`, `pwd`, `history`, `exit`
-- Ignores consecutive duplicate commands
-- Only logs from interactive shells (TTY)
-- Excludes all `prynt` commands from logs and stats
-
 ## Data Location
 - Logs are stored in `~/.context/prynt.sqlite`
 - State for anti-abuse is stored in `~/.context/prynt_state`
@@ -92,4 +84,6 @@ prynt clear
 PRs and issues welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
-MIT 
+MIT
+
+[![Crates.io](https://img.shields.io/crates/v/prynt.svg)](https://crates.io/crates/prynt) 
